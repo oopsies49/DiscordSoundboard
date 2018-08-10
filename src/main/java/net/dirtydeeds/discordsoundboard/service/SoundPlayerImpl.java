@@ -662,7 +662,7 @@ public class SoundPlayerImpl {
                             LOG.info(fileName);
                             File file = filePath.toFile();
                             String parent = file.getParentFile().getName();
-                            SoundFile soundFile = new SoundFile(fileName, filePath.toString(), parent);
+                            SoundFile soundFile = new SoundFile(fileName, filePath.toString(), parent, new Date(file.lastModified()));
                             SoundFile existing = soundFileRepository.findOneBySoundFileIdIgnoreCase(fileName);
                             if (existing != null) {
                                 soundFileRepository.delete(existing);

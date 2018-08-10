@@ -2,6 +2,7 @@ package net.dirtydeeds.discordsoundboard.listeners;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.Streams;
 import com.sun.management.OperatingSystemMXBean;
 import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
@@ -35,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author dfurrer.
@@ -184,13 +187,12 @@ public class ChatSoundBoardListener extends ListenerAdapter {
                 break;
         }
 
-        String output = sb.toString();
-        if (output.length() < appProperties.getMessageSizeLimit()) {
-            replyByPrivateMessage(event, output);
+        if (sb.length() < (appProperties.getMessageSizeLimit() - 6)) {
+            replyByPrivateMessage(event, sb.insert(0, "```").append("```").toString());
         } else {
-            Splitter splitter = Splitter.fixedLength(appProperties.getMessageSizeLimit());
-            for (String s : splitter.split(output)) {
-                replyByPrivateMessage(event, s);
+            Splitter splitter = Splitter.fixedLength(appProperties.getMessageSizeLimit() - 6);
+            for (String s : splitter.split(sb.toString())) {
+                replyByPrivateMessage(event, "```" + s + "```");
             }
         }
     }
@@ -511,14 +513,13 @@ public class ChatSoundBoardListener extends ListenerAdapter {
 
     private StringBuilder getCommandListString() {
         StringBuilder sb = new StringBuilder();
-
-        Set<Map.Entry<String, SoundFile>> entrySet = soundPlayer.getAvailableSoundFiles().entrySet();
-
-        if (entrySet.size() > 0) {
-            for (Map.Entry entry : entrySet) {
-                sb.append(appProperties.getCommandCharacter()).append(entry.getKey()).append("\n");
-            }
-        }
+        Streams.stream(soundFileRepository.findAll())
+                .sorted(Comparator.comparing(SoundFile::getLastModified))
+                .forEach(soundFile -> sb.append(appProperties.getCommandCharacter())
+                        .append(soundFile.getSoundFileId())
+                        .append('\t')
+                        .append(soundFile.getLastModified())
+                        .append('\n'));
         return sb;
     }
 
