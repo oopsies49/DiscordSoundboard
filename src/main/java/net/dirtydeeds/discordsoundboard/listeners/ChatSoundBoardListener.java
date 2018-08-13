@@ -2,6 +2,7 @@ package net.dirtydeeds.discordsoundboard.listeners;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.Streams;
 import com.sun.management.OperatingSystemMXBean;
 import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
@@ -12,6 +13,7 @@ import net.dirtydeeds.discordsoundboard.beans.SoundFile;
 import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
 import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
 import net.dirtydeeds.discordsoundboard.service.SoundPlayerImpl;
+import net.dirtydeeds.discordsoundboard.util.MessageSplitter;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.ChannelType;
 import net.dv8tion.jda.core.entities.Message;
@@ -184,20 +186,20 @@ public class ChatSoundBoardListener extends ListenerAdapter {
                 break;
         }
 
-        String output = sb.toString();
-        if (output.length() < appProperties.getMessageSizeLimit()) {
-            replyByPrivateMessage(event, output);
+        if (sb.length() < (appProperties.getMessageSizeLimit() - 6)) {
+            replyByPrivateMessage(event, sb.insert(0, "```").append("```").toString());
         } else {
-            Splitter splitter = Splitter.fixedLength(appProperties.getMessageSizeLimit());
-            for (String s : splitter.split(output)) {
-                replyByPrivateMessage(event, s);
+            Splitter splitter = Splitter.fixedLength(appProperties.getMessageSizeLimit() - 6);
+            for (String s : splitter.split(sb.toString())) {
+                replyByPrivateMessage(event, "```" + s + "```");
             }
         }
     }
 
     private void listCommand(MessageReceivedEvent event, String requestingUser, String requestingUserId, String message) {
         StringBuilder commandString = getCommandListString();
-        List<String> soundList = getCommandList(commandString);
+        MessageSplitter messageSplitter = new MessageSplitter(appProperties.getMessageSizeLimit());
+        List<String> soundList = messageSplitter.splitMessage(commandString);
 
         LOG.info("Responding to list command. Requested by " + requestingUser + ". ID: " + requestingUserId);
         if (message.equals(appProperties.getCommandCharacter() + "list")) {
@@ -358,7 +360,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     private void youtubeCommand(MessageReceivedEvent event, String originalMessage) {
         try {
             int split = originalMessage.indexOf(" ");
-            String url = originalMessage.substring(split + 1, originalMessage.length());
+            String url = originalMessage.substring(split + 1);
             soundPlayer.playUrlForUser(url, event.getAuthor().getName());
             deleteMessage(event);
         } catch (Exception e) {
@@ -475,50 +477,12 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         LOG.info("Responding to PM of " + requestingUser + ". Unknown Command. Sending help text.");
     }
 
-    private List<String> getCommandList(StringBuilder commandString) {
-        final int maxLineLength = appProperties.getMessageSizeLimit();
-        List<String> soundFiles = new ArrayList<>();
-
-        //if text has \n, \r or \t symbols it's better to split by \s+
-        final String SPLIT_REGEXP = "(?<=[ \\n])";
-
-        String[] tokens = commandString.toString().split(SPLIT_REGEXP);
-        int lineLen = 0;
-        StringBuilder output = new StringBuilder();
-        output.append("```");
-        for (int i = 0; i < tokens.length; i++) {
-            String word = tokens[i];
-
-            if (lineLen + (word).length() > maxLineLength) {
-                if (i > 0) {
-                    output.append("```");
-                    soundFiles.add(output.toString());
-
-                    output = new StringBuilder(maxLineLength);
-                    output.append("```");
-                }
-                lineLen = 0;
-            }
-            output.append(word);
-            lineLen += word.length();
-        }
-        if (output.length() > 0) {
-            output.append("```");
-        }
-        soundFiles.add(output.toString());
-        return soundFiles;
-    }
-
     private StringBuilder getCommandListString() {
         StringBuilder sb = new StringBuilder();
-
-        Set<Map.Entry<String, SoundFile>> entrySet = soundPlayer.getAvailableSoundFiles().entrySet();
-
-        if (entrySet.size() > 0) {
-            for (Map.Entry entry : entrySet) {
-                sb.append(appProperties.getCommandCharacter()).append(entry.getKey()).append("\n");
-            }
-        }
+        Streams.stream(soundFileRepository.findAll())
+                .sorted(Comparator.comparing(SoundFile::getLastModified))
+                .map(soundFile -> String.format("%s%-50s%tF\n", appProperties.getCommandCharacter(), soundFile.getSoundFileId(), soundFile.getLastModified()))
+                .forEach(sb::append);
         return sb;
     }
 

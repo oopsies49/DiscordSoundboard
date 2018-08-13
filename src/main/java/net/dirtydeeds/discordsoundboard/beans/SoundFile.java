@@ -3,6 +3,7 @@ package net.dirtydeeds.discordsoundboard.beans;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import java.util.Date;
 
 /**
  * Class that represents a sound file.
@@ -22,13 +23,17 @@ public class SoundFile {
     @Column
     private String category;
 
+    @Column
+    private Date lastModified;
+
     protected SoundFile() {
     }
 
-    public SoundFile(String soundFileId, String soundFileLocation, String category) {
+    public SoundFile(String soundFileId, String soundFileLocation, String category, Date lastModified) {
         this.soundFileId = soundFileId;
         this.soundFileLocation = soundFileLocation;
         this.category = category;
+        this.lastModified = lastModified;
     }
 
     public String getSoundFileId() {
@@ -41,6 +46,10 @@ public class SoundFile {
 
     public String getCategory() {
         return category;
+    }
+
+    public Date getLastModified() {
+        return lastModified;
     }
 
     @Override
