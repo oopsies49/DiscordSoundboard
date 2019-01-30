@@ -2,7 +2,6 @@ package net.dirtydeeds.discordsoundboard.listeners;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.Streams;
 import com.sun.management.OperatingSystemMXBean;
 import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
@@ -37,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.StreamSupport;
 
 /**
  * @author dfurrer.
@@ -132,8 +132,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         // g1 stats
         // g3 which stats query
         // g5 period for stats
-        String patternString = new StringBuilder().append("\\")
-                .append(appProperties.getCommandCharacter()).append("(\\w+)(\\s(\\w+))?(\\s(\\d+))?").toString();
+        String patternString = String.format("\\%s(\\w+)(\\s(\\w+))?(\\s(\\d+))?", appProperties.getCommandCharacter());
         Pattern pattern = Pattern.compile(patternString);
         Matcher matcher = pattern.matcher(message);
 
@@ -142,6 +141,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         }
 
         String statsQuery = matcher.group(3);
+
         String statsPeriod = matcher.group(5); // TODO date range for stats
 
         if (Strings.isNullOrEmpty(statsQuery)) {
@@ -214,7 +214,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         } else {
             String[] messageSplit = message.split(" ");
             try {
-                Integer pageNumber = Integer.parseInt(messageSplit[1]);
+                int pageNumber = Integer.parseInt(messageSplit[1]);
                 replyByPrivateMessage(event, soundList.get(pageNumber - 1));
             } catch (IndexOutOfBoundsException e) {
                 replyByPrivateMessage(event, "The page number you entered is not valid.");
@@ -321,8 +321,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
             return;
         }
 
-        String patternString = new StringBuilder().append("\\")
-                .append(appProperties.getCommandCharacter()).append("(\\w+)(\\s(\\w+))?(\\s(\\d+))?").toString();
+        String patternString = String.format("\\%s(\\w+)(\\s(\\w+))?(\\s(\\d+))?", appProperties.getCommandCharacter());
         Pattern pattern = Pattern.compile(patternString);
         Matcher matcher = pattern.matcher(message);
         if (!matcher.matches()) {
@@ -479,7 +478,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
 
     private StringBuilder getCommandListString() {
         StringBuilder sb = new StringBuilder();
-        Streams.stream(soundFileRepository.findAll())
+        StreamSupport.stream(soundFileRepository.findAll().spliterator(), false)
                 .sorted(Comparator.comparing(SoundFile::getLastModified))
                 .map(soundFile -> String.format("%s%-50s%tF\n", appProperties.getCommandCharacter(), soundFile.getSoundFileId(), soundFile.getLastModified()))
                 .forEach(sb::append);

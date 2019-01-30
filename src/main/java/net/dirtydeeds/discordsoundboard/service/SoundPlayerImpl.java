@@ -603,7 +603,7 @@ public class SoundPlayerImpl {
                     AudioTrack firstTrack = playlist.getSelectedTrack();
 
                     if (firstTrack == null) {
-                        firstTrack = playlist.getSelectedTrack();
+                        return;
                     }
 
                     mng.scheduler.playNow(firstTrack, guild);
@@ -657,7 +657,7 @@ public class SoundPlayerImpl {
                     .forEach(filePath -> {
                         String fileName = filePath.getFileName().toString();
                         try {
-                            fileName = fileName.substring(fileName.indexOf("/") + 1, fileName.length());
+                            fileName = fileName.substring(fileName.indexOf("/") + 1);
                             fileName = fileName.substring(0, fileName.indexOf("."));
                             LOG.info(fileName);
                             File file = filePath.toFile();
@@ -693,7 +693,8 @@ public class SoundPlayerImpl {
                     .setAudioEnabled(true)
                     .setAutoReconnect(true)
                     .setToken(botToken)
-                    .buildBlocking();
+                    .build()
+                    .awaitReady();
 
             if (appProperties.isRespondToChatCommands()) {
                 ChatSoundBoardListener chatListener = new ChatSoundBoardListener(this, appProperties, playEventRepository, soundFileRepository);

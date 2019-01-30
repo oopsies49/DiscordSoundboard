@@ -51,7 +51,11 @@ public class TrackScheduler extends AudioEventAdapter {
 
     @Override
     public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
-        Guild guild = queue.poll().getGuild();
+        AudioInfo audioInfo = queue.poll();
+        if (audioInfo == null) {
+            return;
+        }
+        Guild guild = audioInfo.getGuild();
 
         if (repeating) {
             playNow(track.makeClone(), guild);
@@ -65,7 +69,7 @@ public class TrackScheduler extends AudioEventAdapter {
                 }
             }
         } else {
-           //playNow(queue.element().getTrack(), guild);
+           playNow(queue.element().getTrack(), guild);
         }
     }
 
@@ -75,7 +79,10 @@ public class TrackScheduler extends AudioEventAdapter {
     public void nextTrack(Guild guild) {
         // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
         // giving null to startTrack, which is a valid argument and will simply stop the player.
-        playNow(queue.poll().getTrack(), guild);
+        AudioInfo poll = queue.poll();
+        if (poll != null) {
+            playNow(poll.getTrack(), guild);
+        }
     }
 
     public boolean isRepeating() {

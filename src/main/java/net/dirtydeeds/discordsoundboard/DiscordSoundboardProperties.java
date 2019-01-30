@@ -1,7 +1,6 @@
 package net.dirtydeeds.discordsoundboard;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Max;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Set;
 
 @ConfigurationProperties()
-//@PropertySource("classpath:application.properties")
 @Validated
 public class DiscordSoundboardProperties {
 
@@ -36,11 +34,12 @@ public class DiscordSoundboardProperties {
     @Min(0)
     private int rateLimitRestrictDuration;
 
+    @NotNull
     public String getBotToken() {
         return botToken;
     }
 
-    public void setBotToken(String botToken) {
+    public void setBotToken(@NotNull String botToken) {
         this.botToken = botToken;
     }
 

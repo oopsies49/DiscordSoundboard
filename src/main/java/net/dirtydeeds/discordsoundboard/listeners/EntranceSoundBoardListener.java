@@ -1,8 +1,5 @@
 package net.dirtydeeds.discordsoundboard.listeners;
 
-import java.util.Map;
-import java.util.Set;
-
 import net.dirtydeeds.discordsoundboard.beans.SoundFile;
 import net.dirtydeeds.discordsoundboard.service.SoundPlayerImpl;
 import net.dv8tion.jda.core.entities.VoiceChannel;
@@ -10,7 +7,11 @@ import net.dv8tion.jda.core.events.guild.voice.GenericGuildVoiceEvent;
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
-import org.apache.commons.logging.impl.SimpleLog;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.util.Map;
+import java.util.Set;
 
 /**
  * @author asafatli.
@@ -19,7 +20,7 @@ import org.apache.commons.logging.impl.SimpleLog;
  */
 public class EntranceSoundBoardListener extends ListenerAdapter {
 
-    private static final SimpleLog LOG = new SimpleLog("EntranceListener");
+    private static final Log LOG = LogFactory.getLog("EntranceListener");
 
     private SoundPlayerImpl bot;
 

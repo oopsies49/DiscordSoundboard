@@ -40,18 +40,19 @@ public class SoundboardRestController {
     @Deprecated
     public List<SoundFile> getSoundFileList() {
         Map<String, SoundFile> soundMap = soundPlayer.getAvailableSoundFiles();
-        List<SoundFile> returnSounds = soundMap.entrySet().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(LinkedList::new));
-        returnSounds.sort(new SortIgnoreCase());
-        return returnSounds;
+        return soundMap.entrySet().stream()
+                .map(Map.Entry::getValue)
+                .sorted(new SortIgnoreCase())
+                .collect(Collectors.toCollection(LinkedList::new));
     }
     
     @RequestMapping(value = "/soundCategories", method = RequestMethod.GET)
     @Deprecated
     public Set<String> getSoundCategories() {
-        Set<String> categories = new HashSet<>();
         Map<String, SoundFile> soundMap = soundPlayer.getAvailableSoundFiles();
-        categories.addAll(soundMap.entrySet().stream().map(entry -> entry.getValue().getCategory()).collect(Collectors.toList()));
-        return categories;
+        return soundMap.entrySet().stream()
+                .map(entry -> entry.getValue().getCategory())
+                .collect(Collectors.toSet());
     }
 
     @RequestMapping(value = "/users", method = RequestMethod.GET)
@@ -85,9 +86,9 @@ public class SoundboardRestController {
     @RequestMapping(value = "/sounds", method = RequestMethod.GET)
     public List<SoundFile> getSoundFileListNew() {
         Map<String, SoundFile> soundMap = soundPlayer.getAvailableSoundFiles();
-        List<SoundFile> returnSounds = soundMap.entrySet().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(LinkedList::new));
-        returnSounds.sort(new SortIgnoreCase());
-        return returnSounds;
+        return soundMap.entrySet().stream().map(Map.Entry::getValue)
+                .sorted(new SortIgnoreCase())
+                .collect(Collectors.toCollection(LinkedList::new));
     }
 
     @RequestMapping(value = "/sounds", method = RequestMethod.POST)
@@ -107,10 +108,10 @@ public class SoundboardRestController {
 
     @RequestMapping(value = "/sounds/category", method = RequestMethod.GET)
     public Set<String> getSoundCategoriesNew() {
-        Set<String> categories = new HashSet<>();
         Map<String, SoundFile> soundMap = soundPlayer.getAvailableSoundFiles();
-        categories.addAll(soundMap.entrySet().stream().map(entry -> entry.getValue().getCategory()).collect(Collectors.toList()));
-        return categories;
+        return soundMap.entrySet().stream()
+                .map(entry -> entry.getValue().getCategory())
+                .collect(Collectors.toSet());
     }
 
     @RequestMapping(value = "/stop", method = RequestMethod.POST)

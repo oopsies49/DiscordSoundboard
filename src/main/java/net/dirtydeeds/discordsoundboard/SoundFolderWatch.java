@@ -1,19 +1,15 @@
 package net.dirtydeeds.discordsoundboard;
 
-import net.dirtydeeds.discordsoundboard.service.SoundPlayerImpl;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.WatchEvent.Kind;
 import java.util.Observable;
+
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
+import static java.nio.file.StandardWatchEventKinds.*;
 
 /**
  * Observable class used to watch changes to files in a given directory
@@ -53,28 +49,44 @@ public class SoundFolderWatch extends Observable {
 
             // Start the infinite polling loop
             WatchKey key;
-            while (true) {
+            //loop
+            key = service.take();
+
+            // Dequeueing events
+            Kind<?> kind;
+            for (WatchEvent<?> watchEvent : key.pollEvents()) {
+                // Get the type of the event
+                kind = watchEvent.kind();
+                if (kind == ENTRY_CREATE || kind == ENTRY_DELETE || kind == ENTRY_MODIFY) {
+                    // A new Path was created
+                    Path newPath = ((WatchEvent<Path>) watchEvent).context();
+                    // Output
+                    //Mark the observable object as changed.
+                    this.setChanged();
+                    System.out.println("New path created: " + newPath + " kind of operation: " + kind);
+
+                    notifyObservers(this);
+                }
+            }
+
+            while (key.reset()) {
                 key = service.take();
 
                 // Dequeueing events
-                Kind<?> kind;
-                for(WatchEvent<?> watchEvent : key.pollEvents()) {
+
+                for (WatchEvent<?> watchEvent : key.pollEvents()) {
                     // Get the type of the event
                     kind = watchEvent.kind();
                     if (kind == ENTRY_CREATE || kind == ENTRY_DELETE || kind == ENTRY_MODIFY) {
-                        // A new Path was created 
+                        // A new Path was created
                         Path newPath = ((WatchEvent<Path>) watchEvent).context();
                         // Output
                         //Mark the observable object as changed.
                         this.setChanged();
                         System.out.println("New path created: " + newPath + " kind of operation: " + kind);
-                        
+
                         notifyObservers(this);
                     }
-                }
-
-                if(!key.reset()) {
-                    break; //loop
                 }
             }
         } catch(IOException | InterruptedException ioe) {
