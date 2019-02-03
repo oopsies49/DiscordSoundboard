@@ -25,11 +25,11 @@ public class DiscordSoundboardProperties {
     @Max(1994)
     private int messageSizeLimit = 1994;
     private String soundsDirectory;
-    // TODO test if comma separated strings get parsed automatically... not sure if some config is needed to do it
     private List<String> allowedUserIds = Collections.emptyList();
     private List<String> bannedUserIds = Collections.emptyList();
     private Set<String> unlimitedUserIds = Collections.emptySet();
     private boolean leaveAfterPlayback = false;
+    private boolean leaveWhenLastUserInChannel = true;
 
     @Min(0)
     private int rateLimitRestrictDuration;
@@ -137,5 +137,13 @@ public class DiscordSoundboardProperties {
 
     public void setUnlimitedUserIds(Set<String> unlimitedUserIds) {
         this.unlimitedUserIds = unlimitedUserIds;
+    }
+
+    public boolean isLeaveWhenLastUserInChannel() {
+        return leaveWhenLastUserInChannel;
+    }
+
+    public void setLeaveWhenLastUserInChannel(boolean leaveWhenLastUserInChannel) {
+        this.leaveWhenLastUserInChannel = leaveWhenLastUserInChannel;
     }
 }

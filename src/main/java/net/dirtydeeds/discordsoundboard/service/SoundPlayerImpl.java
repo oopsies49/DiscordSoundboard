@@ -22,15 +22,16 @@ import net.dirtydeeds.discordsoundboard.beans.PlayEvent;
 import net.dirtydeeds.discordsoundboard.beans.SoundFile;
 import net.dirtydeeds.discordsoundboard.beans.User;
 import net.dirtydeeds.discordsoundboard.listeners.ChatSoundBoardListener;
+import net.dirtydeeds.discordsoundboard.listeners.DisconnectListener;
 import net.dirtydeeds.discordsoundboard.listeners.EntranceSoundBoardListener;
 import net.dirtydeeds.discordsoundboard.listeners.LeaveSoundBoardListener;
 import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
 import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
-import net.dv8tion.jda.core.audio.hooks.ConnectionStatus;
 import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.JDABuilder;
 import net.dv8tion.jda.core.Permission;
+import net.dv8tion.jda.core.audio.hooks.ConnectionStatus;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.guild.voice.GenericGuildVoiceEvent;
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent;
@@ -704,6 +705,11 @@ public class SoundPlayerImpl {
                 this.addBotListener(chatListener);
                 this.addBotListener(entranceListener);
                 this.addBotListener(leaveSoundBoardListener);
+
+                if (appProperties.isLeaveWhenLastUserInChannel()) {
+                    DisconnectListener disconnectListener = new DisconnectListener();
+                    this.addBotListener(disconnectListener);
+                }
             }
 
             allowedUsers = appProperties.getAllowedUserIds();

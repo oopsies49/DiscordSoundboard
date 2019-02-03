@@ -54,7 +54,6 @@ dependencies {
     compile 'com.google.guava:guava:27.0.1-jre'
 
     testCompile 'org.springframework.boot:spring-boot-starter-test'
-    testCompile 'org.springframework.boot:spring-boot-starter-test'
 }
 
 processResources {

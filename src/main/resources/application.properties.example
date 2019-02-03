@@ -35,6 +35,7 @@ allowedUserIds=
 bannedUserIds=
 
 leaveAfterPlayback=false
+leaveWhenLastUserInChannel=false
 
 # Number of seconds to restrict a user from playing another sound using the chat. Minimum 0.
 rateLimitRestrictDuration=0
