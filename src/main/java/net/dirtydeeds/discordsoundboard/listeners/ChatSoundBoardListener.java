@@ -197,16 +197,24 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     }
 
     private void listCommand(MessageReceivedEvent event, String requestingUser, String requestingUserId, String message) {
+        LOG.info("Responding to list command. Requested by " + requestingUser + ". ID: " + requestingUserId);
+
         StringBuilder commandString = getCommandListString();
+        if (commandString == null || commandString.length() == 0) {
+            replyByPrivateMessage(event, "You have no sound files.");
+            return;
+        }
+
         MessageSplitter messageSplitter = new MessageSplitter(appProperties.getMessageSizeLimit());
         List<String> soundList = messageSplitter.splitMessage(commandString);
 
-        LOG.info("Responding to list command. Requested by " + requestingUser + ". ID: " + requestingUserId);
         if (message.equals(appProperties.getCommandCharacter() + "list")) {
             if (commandString.length() > appProperties.getMessageSizeLimit()) {
-                replyByPrivateMessage(event, "You have " + soundList.size() +
-                        " pages of soundFiles. Reply: ```" + appProperties.getCommandCharacter() +
-                        "list pageNumber``` to request a specific page of results.");
+                replyByPrivateMessage(event,
+                                      "You have " + soundList.size() + " pages of sound files. Reply:" +
+                                      "```" + appProperties.getCommandCharacter() + "list pageNumber```"
+                                      + "to request a specific page of results.");
+                replyByPrivateMessage(event, soundList.get(0));
             } else {
                 replyByPrivateMessage(event, "Type any of the following into the chat to play the sound:");
                 replyByPrivateMessage(event, soundList.get(0));
@@ -215,6 +223,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
             String[] messageSplit = message.split(" ");
             try {
                 int pageNumber = Integer.parseInt(messageSplit[1]);
+                replyByPrivateMessage(event, "Type any of the following into the chat to play the sound:");
                 replyByPrivateMessage(event, soundList.get(pageNumber - 1));
             } catch (IndexOutOfBoundsException e) {
                 replyByPrivateMessage(event, "The page number you entered is not valid.");
@@ -479,7 +488,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     private StringBuilder getCommandListString() {
         StringBuilder sb = new StringBuilder();
         StreamSupport.stream(soundFileRepository.findAll().spliterator(), false)
-                .sorted(Comparator.comparing(SoundFile::getLastModified))
+                .sorted(Comparator.comparing(SoundFile::getLastModified).reversed())
                 .map(soundFile -> String.format("%s%-50s%tF\n", appProperties.getCommandCharacter(), soundFile.getSoundFileId(), soundFile.getLastModified()))
                 .forEach(sb::append);
         return sb;
