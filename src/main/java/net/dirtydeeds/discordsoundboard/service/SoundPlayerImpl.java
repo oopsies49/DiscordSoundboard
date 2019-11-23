@@ -420,6 +420,28 @@ public class SoundPlayerImpl {
     }
 
     /**
+     * Delete a sound file from the repository and the filesystem.
+     * @param soundFileId
+     * @return true if the sound file was successfully deleted, false if the sound file was not found or there was an error
+     */
+    public boolean deleteSoundFileById(String soundFileId) {
+        SoundFile soundFile = soundFileRepository.findOneBySoundFileIdIgnoreCase(soundFileId);
+        if (soundFile == null) {
+            return false;
+        }
+        soundFileRepository.delete(soundFile);
+        try {
+            Path path = Paths.get(soundFile.getSoundFileLocation());
+            LOG.info("Deleting file={}", path);
+            return Files.deleteIfExists(path);
+        } catch (IOException e) {
+            LOG.error("Could not delete sound file", e);
+            return false;
+        }
+    }
+
+
+    /**
      * Find the "author" of the event and join the voice channel they are in.
      *
      * @param event - The event

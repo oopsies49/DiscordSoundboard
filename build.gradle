@@ -4,7 +4,7 @@ apply plugin: 'application'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 
-version = '2.3.1-beta'
+version = '2.3.2-beta'
 
 //noinspection GroovyUnusedAssignment
 sourceCompatibility = 1.8
@@ -63,4 +63,10 @@ jar {
 
 startScripts {
     mainClassName 'net.dirtydeeds.discordsoundboard.MainController'
+}
+
+bootRun {
+    if (project.hasProperty('jvmArgs')) {
+        jvmArgs = (project.jvmArgs.split("\\s+") as List)
+    }
 }

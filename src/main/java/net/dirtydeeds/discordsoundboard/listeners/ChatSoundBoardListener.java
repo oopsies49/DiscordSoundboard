@@ -398,21 +398,13 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     private void removeCommand(MessageReceivedEvent event, String message) {
         String[] messageSplit = message.split(" ");
         String soundToRemove = messageSplit[1];
-        boolean hasManageServerPerm = PermissionUtil.checkPermission(event.getMember(), Permission.MANAGE_SERVER);
+        boolean hasManageServerPerm = event.getMember() != null && PermissionUtil.checkPermission(event.getMember(), Permission.MANAGE_SERVER);
         if (event.getAuthor().getName().equalsIgnoreCase(soundToRemove)
                 || hasManageServerPerm) {
-            SoundFile soundFileToRemove = soundPlayer.getAvailableSoundFiles().get(soundToRemove);
-            if (soundFileToRemove != null) {
-                try {
-                    boolean fileRemoved = Files.deleteIfExists(Paths.get(soundFileToRemove.getSoundFileLocation()));
-                    if (fileRemoved) {
-                        replyByPrivateMessage(event, "Sound file " + soundToRemove + " was removed.");
-                    } else {
-                        replyByPrivateMessage(event, "Could not find sound file: " + soundToRemove + ".");
-                    }
-                } catch (IOException e) {
-                    LOG.error("Could not remove sound file " + soundToRemove);
-                }
+            if (soundPlayer.deleteSoundFileById(soundToRemove)) {
+                replyByPrivateMessage(event, "Sound file " + soundToRemove + " was removed.");
+            } else {
+                replyByPrivateMessage(event, "Could not find sound file: " + soundToRemove + ".");
             }
         } else {
             replyByPrivateMessage(event, "You do not have permission to remove sound file: " + soundToRemove + ".");
