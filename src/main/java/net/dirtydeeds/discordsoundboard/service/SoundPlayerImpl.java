@@ -92,7 +92,7 @@ public class SoundPlayerImpl {
         this.playerManager = new DefaultAudioPlayerManager();
         this.playerManager.registerSourceManager(new LocalAudioSourceManager());
         this.playerManager.registerSourceManager(new YoutubeAudioSourceManager());
-        this.playerManager.registerSourceManager(new SoundCloudAudioSourceManager());
+        this.playerManager.registerSourceManager(SoundCloudAudioSourceManager.createDefault());
         this.playerManager.registerSourceManager(new BandcampAudioSourceManager());
         this.playerManager.registerSourceManager(new TwitchStreamAudioSourceManager());
         this.playerManager.registerSourceManager(new VimeoAudioSourceManager());
