@@ -1,8 +1,12 @@
 package net.dirtydeeds.discordsoundboard.web;
 
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
+import net.dirtydeeds.discordsoundboard.beans.PlayEvent;
 import net.dirtydeeds.discordsoundboard.beans.SoundFile;
+import net.dirtydeeds.discordsoundboard.beans.SoundFilePlayEventCount;
 import net.dirtydeeds.discordsoundboard.beans.User;
+import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
+import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
 import net.dirtydeeds.discordsoundboard.service.SoundPlayerImpl;
 import net.dirtydeeds.discordsoundboard.util.SortIgnoreCase;
 import org.springframework.http.HttpStatus;
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.inject.Inject;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * REST Controller.
@@ -26,14 +31,18 @@ import java.util.stream.Collectors;
 public class SoundboardRestController {
     
     private SoundPlayerImpl soundPlayer;
+    private PlayEventRepository playEventRepository;
+    private SoundFileRepository soundFileRepository;
 
     @SuppressWarnings("unused") //Damn spring and it's need for empty constructors
     public SoundboardRestController() {
     }
 
     @Inject
-    public SoundboardRestController(final SoundPlayerImpl soundPlayer) {
+    public SoundboardRestController(final SoundPlayerImpl soundPlayer, final PlayEventRepository playEventRepository, final SoundFileRepository soundFileRepository) {
         this.soundPlayer = soundPlayer;
+        this.playEventRepository = playEventRepository;
+        this.soundFileRepository = soundFileRepository;
     }
 
     @RequestMapping(value = "/availableSounds", method = RequestMethod.GET)
@@ -90,6 +99,20 @@ public class SoundboardRestController {
                 .sorted(new SortIgnoreCase())
                 .collect(Collectors.toCollection(LinkedList::new));
     }
+
+    @RequestMapping(value = "/playEvents", method = RequestMethod.GET)
+    public List<PlayEvent> getPlayEvents() {
+        Iterable<PlayEvent> all = playEventRepository.findAll();
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(all.iterator(), Spliterator.SORTED), false)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    @RequestMapping(value = "/soundPlays", method = RequestMethod.GET)
+    public List<SoundFilePlayEventCount> getSoundFilePlayEventCount() {
+        Collection<SoundFilePlayEventCount> all = soundFileRepository.getSoundFilePlayEventCountDesc();
+        return new ArrayList<>(all);
+    }
+
 
     @RequestMapping(value = "/sounds", method = RequestMethod.POST)
     public HttpStatus soundCommand(@RequestParam String username, @RequestParam String command) {

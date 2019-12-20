@@ -20,6 +20,7 @@ import net.dirtydeeds.discordsoundboard.GuildMusicManager;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
 import net.dirtydeeds.discordsoundboard.beans.PlayEvent;
 import net.dirtydeeds.discordsoundboard.beans.SoundFile;
+import net.dirtydeeds.discordsoundboard.beans.SoundFilePlayEventCount;
 import net.dirtydeeds.discordsoundboard.beans.User;
 import net.dirtydeeds.discordsoundboard.listeners.ChatSoundBoardListener;
 import net.dirtydeeds.discordsoundboard.listeners.DisconnectListener;
@@ -52,6 +53,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -775,5 +777,52 @@ public class SoundPlayerImpl {
      */
     private void addBotListener(Object listener) {
         bot.addEventListener(listener);
+    }
+
+    public void playTopSoundFile(String requestingUser, MessageReceivedEvent event, int number) throws SoundPlaybackException {
+        try {
+            List<SoundFilePlayEventCount> soundFilePlayEventCounts = soundFileRepository.getSoundFilePlayEventCountDesc();
+            playRandom(requestingUser, event, number, soundFilePlayEventCounts);
+        } catch (Exception e) {
+            LOG.error("Problem playing top file.", e);
+            throw new SoundPlaybackException("Problem playing top file.");
+        }
+    }
+
+    public void playBottomSoundFile(String requestingUser, MessageReceivedEvent event, int number) throws SoundPlaybackException {
+        try {
+            List<SoundFilePlayEventCount> soundFilePlayEventCounts = soundFileRepository.getSoundFilePlayEventCountAsc();
+            playRandom(requestingUser, event, number, soundFilePlayEventCounts);
+        } catch (Exception e) {
+            LOG.error("Problem playing top file.", e);
+            throw new SoundPlaybackException("Problem playing top file.");
+        }
+    }
+
+    private void playRandom(String requestingUser, MessageReceivedEvent event, int number, List<SoundFilePlayEventCount> soundFilePlayEventCounts) {
+        SoundFilePlayEventCount randomValue;
+        Random random = new SecureRandom();
+        if (soundFilePlayEventCounts.size() == 0) {
+            return;
+        } else if (soundFilePlayEventCounts.size() == 1) {
+            randomValue = soundFilePlayEventCounts.get(0);
+        } else if (soundFilePlayEventCounts.size() < number) {
+            int rand = random.nextInt(soundFilePlayEventCounts.size());
+            randomValue = soundFilePlayEventCounts.get(rand);
+        } else {
+            int rand = random.nextInt(number);
+            randomValue = soundFilePlayEventCounts.get(rand);
+        }
+
+        LOG.info("Attempting to play top file: " + randomValue.getSoundFileId() + ", requested by : " + requestingUser);
+        try {
+            if (event != null) {
+                playFileForEvent(randomValue.getSoundFileId(), event);
+            } else {
+                playFileForUser(randomValue.getSoundFileId(), requestingUser);
+            }
+        } catch (Exception e) {
+            LOG.error("Could not play top file: " + randomValue.getSoundFileId());
+        }
     }
 }

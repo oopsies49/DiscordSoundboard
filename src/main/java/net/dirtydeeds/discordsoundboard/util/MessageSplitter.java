@@ -7,6 +7,8 @@ import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MessageSplitter {
     private final int maxMessageLength;
@@ -91,5 +93,21 @@ public class MessageSplitter {
 
         return messages;
 
+    }
+
+    public static int getCommandXNumber(String message, String commandCharacter) {
+        String patternString = String.format("\\%s(\\w+)(\\s(\\w+))?(\\s(\\d+))?", commandCharacter);
+        Pattern pattern = Pattern.compile(patternString);
+        Matcher matcher = pattern.matcher(message);
+        if (!matcher.matches()) {
+            return -1;
+        }
+
+        String repeatString = matcher.group(3);
+        if (repeatString == null || repeatString.length() == 0) {
+            return -1;
+        }
+
+        return Integer.parseInt(repeatString);
     }
 }

@@ -87,32 +87,37 @@ public class ChatSoundBoardListener extends ListenerAdapter {
             return;
         }
 
-        if (!message.startsWith(appProperties.getCommandCharacter())) {
+        String cc = appProperties.getCommandCharacter();
+        if (!message.startsWith(cc)) {
             uploadCommand(event, originalMessage);
             super.onMessageReceived(event);
             return;
         }
 
         //Respond
-        if (message.startsWith(appProperties.getCommandCharacter() + "list")) {
+        if (message.startsWith(cc + "list")) {
             listCommand(event, requestingUser, requestingUserId, message);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "help")) {
+        } else if (message.startsWith(cc + "help")) {
             helpCommand(event, requestingUser, requestingUserId);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "volume")) {
+        } else if (message.startsWith(cc + "volume")) {
             volumeCommand(event, requestingUser, requestingUserId, message);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "stop")) {
+        } else if (message.startsWith(cc + "stop")) {
             stopCommand(event, requestingUser);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "info")) {
+        } else if (message.startsWith(cc + "info")) {
             infoCommand(event, requestingUser, requestingUserId);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "remove")) {
+        } else if (message.startsWith(cc + "remove")) {
             removeCommand(event, message);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "random")) {
+        } else if (message.startsWith(cc + "random")) {
             randomCommand(event, requestingUser);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "summon")) {
+        } else if (message.startsWith(cc + "top")) {
+            topCommand(event, requestingUser, message);
+        } else if (message.startsWith(cc + "bottom")) {
+            bottomCommand(event, requestingUser, message);
+        } else if (message.startsWith(cc + "summon")) {
             summonCommand(event);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "yt")) {
+        } else if (message.startsWith(cc + "yt")) {
             youtubeCommand(event, originalMessage);
-        } else if (message.startsWith(appProperties.getCommandCharacter() + "stats")) {
+        } else if (message.startsWith(cc + "stats")) {
             statsCommand(event);
         } else if (message.startsWith(appProperties.getCommandCharacter()) && message.length() >= 2) {
             playSoundCommand(event, requestingUser, requestingUserId, message);
@@ -393,6 +398,34 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         } catch (SoundPlaybackException e) {
             replyByPrivateMessage(event, "Problem playing random file:" + e);
         }
+    }
+
+
+    private void topCommand(MessageReceivedEvent event, String requestingUser, String message) {
+        int number = getCommandNumber(message);
+        try {
+            soundPlayer.playTopSoundFile(requestingUser, event, number);
+        } catch (SoundPlaybackException e) {
+            replyByPrivateMessage(event, "Problem playing random file:" + e);
+        }
+    }
+
+    private void bottomCommand(MessageReceivedEvent event, String requestingUser, String message) {
+        int number = getCommandNumber(message);
+        try {
+            soundPlayer.playBottomSoundFile(requestingUser, event, number);
+        } catch (SoundPlaybackException e) {
+            replyByPrivateMessage(event, "Problem playing random file:" + e);
+        }
+    }
+
+    private int getCommandNumber(String message) {
+        int number = MessageSplitter.getCommandXNumber(message, appProperties.getCommandCharacter());
+
+        if (number == -1) {
+            number = 10;
+        }
+        return number;
     }
 
     private void removeCommand(MessageReceivedEvent event, String message) {
