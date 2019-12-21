@@ -402,6 +402,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
 
 
     private void topCommand(MessageReceivedEvent event, String requestingUser, String message) {
+        deleteMessage(event);
         int number = getCommandNumber(message);
         try {
             soundPlayer.playTopSoundFile(requestingUser, event, number);
@@ -411,6 +412,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     }
 
     private void bottomCommand(MessageReceivedEvent event, String requestingUser, String message) {
+        deleteMessage(event);
         int number = getCommandNumber(message);
         try {
             soundPlayer.playBottomSoundFile(requestingUser, event, number);
