@@ -76,6 +76,13 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         String originalMessage = event.getMessage().getContentRaw().trim();
         String message = originalMessage.toLowerCase();
 
+        String cc = appProperties.getCommandCharacter();
+        if (!message.startsWith(cc)) {
+            uploadCommand(event, originalMessage);
+            super.onMessageReceived(event);
+            return;
+        }
+
         if (!soundPlayer.isUserAllowed(requestingUser, requestingUserId)) {
             replyByPrivateMessage(event, "I don't take orders from you.");
             super.onMessageReceived(event);
@@ -83,13 +90,6 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         }
         if (soundPlayer.isUserBanned(requestingUser, requestingUserId)) {
             replyByPrivateMessage(event, "You've been banned from using this soundboard bot.");
-            super.onMessageReceived(event);
-            return;
-        }
-
-        String cc = appProperties.getCommandCharacter();
-        if (!message.startsWith(cc)) {
-            uploadCommand(event, originalMessage);
             super.onMessageReceived(event);
             return;
         }
