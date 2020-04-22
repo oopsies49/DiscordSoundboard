@@ -27,4 +27,8 @@ public class GuildMusicManager {
         sendHandler = new AudioPlayerSendHandler(player);
         player.addListener(scheduler);
     }
+
+    public void stop() {
+        scheduler.stop();
+    }
 }

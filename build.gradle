@@ -70,3 +70,7 @@ bootRun {
         jvmArgs = (project.jvmArgs.split("\\s+") as List)
     }
 }
+
+run {
+    mainClassName = 'net.dirtydeeds.discordsoundboard.MainController'
+}

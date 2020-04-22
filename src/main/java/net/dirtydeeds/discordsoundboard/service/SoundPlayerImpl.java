@@ -333,8 +333,7 @@ public class SoundPlayerImpl {
         GuildMusicManager mng;
         if (guild != null) {
             mng = getGuildAudioPlayer(guild);
-            AudioPlayer player = mng.player;
-            player.stopTrack();
+            mng.stop();
             return true;
         }
         return false;
