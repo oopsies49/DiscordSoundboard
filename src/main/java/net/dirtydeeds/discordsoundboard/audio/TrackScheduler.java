@@ -1,4 +1,4 @@
-package net.dirtydeeds.discordsoundboard;
+package net.dirtydeeds.discordsoundboard.audio;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
@@ -17,15 +17,12 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class TrackScheduler extends AudioEventAdapter {
 
-    private boolean repeating = false;
     private final AudioPlayer player;
     private final Queue<AudioInfo> queue;
-    private final boolean leaveAfterPlayback;
 
-    TrackScheduler(AudioPlayer player, boolean leaveAfterPlayback) {
+    TrackScheduler(AudioPlayer player) {
         this.player = player;
         this.queue = new LinkedBlockingQueue<>();
-        this.leaveAfterPlayback = leaveAfterPlayback;
     }
 
     /**
@@ -35,15 +32,16 @@ public class TrackScheduler extends AudioEventAdapter {
      */
     public void queue(AudioTrack track, Guild guild) {
         AudioInfo info = new AudioInfo(track, guild);
-        queue.add(info);
 
         if (player.getPlayingTrack() == null) {
             player.playTrack(track);
+        } else {
+            queue.add(info);
         }
     }
 
     public void playNow(AudioTrack track, Guild guild) {
-        if (player.startTrack(track, false)) {
+        if (!player.startTrack(track, false)) {
             AudioInfo info = new AudioInfo(track, guild);
             queue.add(info);
         }
@@ -57,43 +55,8 @@ public class TrackScheduler extends AudioEventAdapter {
         }
         Guild guild = audioInfo.getGuild();
 
-        if (repeating) {
-            playNow(track.makeClone(), guild);
+        if (!queue.isEmpty()) {
+           playNow(queue.element().getTrack(), guild);
         }
-
-        if (queue.isEmpty()) {
-            if (leaveAfterPlayback) {
-                VoiceChannel afkChannel = guild.getAfkChannel();
-                if (afkChannel != null) {
-                    guild.getAudioManager().openAudioConnection(afkChannel);
-                }
-            }
-        } else {
-           playNow(queue.element().getTrack().makeClone(), guild);
-        }
-    }
-
-    /**
-     * Start the next track, stopping the current one if it is playing.
-     */
-    public void nextTrack(Guild guild) {
-        // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
-        // giving null to startTrack, which is a valid argument and will simply stop the player.
-        AudioInfo poll = queue.poll();
-        if (poll != null) {
-            playNow(poll.getTrack(), guild);
-        }
-    }
-
-    public boolean isRepeating() {
-        return repeating;
-    }
-
-    public void setRepeating(boolean repeating) {
-        this.repeating = repeating;
-    }
-
-    public void shuffle() {
-        Collections.shuffle((List<?>) queue);
     }
 }

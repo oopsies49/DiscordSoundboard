@@ -16,7 +16,7 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
-import net.dirtydeeds.discordsoundboard.GuildMusicManager;
+import net.dirtydeeds.discordsoundboard.audio.GuildMusicManager;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
 import net.dirtydeeds.discordsoundboard.beans.PlayEvent;
 import net.dirtydeeds.discordsoundboard.beans.SoundFile;
@@ -24,8 +24,6 @@ import net.dirtydeeds.discordsoundboard.beans.SoundFilePlayEventCount;
 import net.dirtydeeds.discordsoundboard.beans.User;
 import net.dirtydeeds.discordsoundboard.listeners.ChatSoundBoardListener;
 import net.dirtydeeds.discordsoundboard.listeners.DisconnectListener;
-import net.dirtydeeds.discordsoundboard.listeners.EntranceSoundBoardListener;
-import net.dirtydeeds.discordsoundboard.listeners.LeaveSoundBoardListener;
 import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
 import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
 import net.dv8tion.jda.core.AccountType;
@@ -34,7 +32,6 @@ import net.dv8tion.jda.core.JDABuilder;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus;
 import net.dv8tion.jda.core.entities.*;
-import net.dv8tion.jda.core.events.guild.voice.GenericGuildVoiceEvent;
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.exceptions.PermissionException;
@@ -109,7 +106,7 @@ public class SoundPlayerImpl {
         GuildMusicManager mng = musicManagers.get(guildId);
         if (mng == null) {
             synchronized (musicManagers) {
-                mng = musicManagers.computeIfAbsent(guildId, k -> new GuildMusicManager(playerManager, appProperties.isLeaveAfterPlayback()));
+                mng = musicManagers.computeIfAbsent(guildId, k -> new GuildMusicManager(playerManager));
             }
         }
         return mng;
@@ -301,28 +298,6 @@ public class SoundPlayerImpl {
                 sendPrivateMessage(event, "I can not find a voice channel you are connected to.");
                 LOG.warn("no guild to join.");
             }
-        }
-    }
-
-    /**
-     * Plays the fileName requested for a voice channel entrance.
-     *
-     * @param fileName - The name of the file to play.
-     * @param event    -  The even that triggered the sound playing request. The event is used to find the channel to play
-     *                 the sound back in.
-     */
-    public void playFileForEntrance(String fileName, GenericGuildVoiceEvent event, VoiceChannel channel) {
-        if (event == null) return;
-        try {
-            moveToChannel(channel, event.getGuild());
-            LOG.info("Playing file for entrance of user: " + fileName);
-            try {
-                playFile(fileName, event.getGuild());
-            } catch (SoundPlaybackException e) {
-                LOG.info("Could not find any sound to play for entrance of user: " + fileName);
-            }
-        } catch (SoundPlaybackException e) {
-            LOG.debug(e.toString());
         }
     }
 
@@ -606,7 +581,9 @@ public class SoundPlayerImpl {
             playerManager.loadItemOrdered(mng, audioFile, new AudioLoadResultHandler() {
                 @Override
                 public void trackLoaded(AudioTrack track) {
-                    if (repeatNumber > 1) {
+                    if (repeatNumber <= 1) {
+                        mng.scheduler.playNow(track, guild);
+                    } else {
                         for (int i = 0; i <= repeatNumber - 1; i++) {
                             if (i == 0) {
                                 mng.scheduler.queue(track, guild);
@@ -615,11 +592,6 @@ public class SoundPlayerImpl {
                                 mng.scheduler.queue(track.makeClone(), guild);
                             }
                         }
-                    } else if (repeatNumber < 0) {
-                        mng.scheduler.playNow(track, guild);
-                        mng.scheduler.setRepeating(true);
-                    } else {
-                        mng.scheduler.playNow(track, guild);
                     }
                 }
 
@@ -723,12 +695,7 @@ public class SoundPlayerImpl {
 
             if (appProperties.isRespondToChatCommands()) {
                 ChatSoundBoardListener chatListener = new ChatSoundBoardListener(this, appProperties, playEventRepository, soundFileRepository);
-                EntranceSoundBoardListener entranceListener = new EntranceSoundBoardListener(this);
-                LeaveSoundBoardListener leaveSoundBoardListener = new LeaveSoundBoardListener(this, appProperties.getLeaveSuffix());
-
                 this.addBotListener(chatListener);
-                this.addBotListener(entranceListener);
-                this.addBotListener(leaveSoundBoardListener);
 
                 if (appProperties.isLeaveWhenLastUserInChannel()) {
                     DisconnectListener disconnectListener = new DisconnectListener();
