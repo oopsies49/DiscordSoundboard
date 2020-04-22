@@ -69,7 +69,7 @@ public class TrackScheduler extends AudioEventAdapter {
                 }
             }
         } else {
-           playNow(queue.element().getTrack(), guild);
+           playNow(queue.element().getTrack().makeClone(), guild);
         }
     }
 
