@@ -361,6 +361,11 @@ public class ChatSoundBoardListener extends ListenerAdapter {
             }
         }
 
+        int repeatLimit = appProperties.getRepeatLimit();
+        if (repeatNumber > repeatLimit) {
+            replyByPrivateMessage(event, "Repeat count is limited to " + repeatLimit);
+        }
+
         LOG.info("Attempting to play file: " + fileNameRequested + " " + repeatNumber + " times. Requested by " +
                 requestingUser + ". ID: " + requestingUserId);
         try {

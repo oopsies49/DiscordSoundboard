@@ -1,7 +1,6 @@
 package net.dirtydeeds.discordsoundboard.service;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
@@ -32,7 +31,6 @@ import net.dv8tion.jda.core.JDABuilder;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus;
 import net.dv8tion.jda.core.entities.*;
-import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.exceptions.PermissionException;
 import net.dv8tion.jda.core.managers.AudioManager;
@@ -214,7 +212,7 @@ public class SoundPlayerImpl {
             Guild guild = getUsersGuild(userName);
             joinUsersCurrentChannel(userName);
 
-            playFile(url, guild, 0);
+            queueFile(url, guild);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -298,28 +296,6 @@ public class SoundPlayerImpl {
                 sendPrivateMessage(event, "I can not find a voice channel you are connected to.");
                 LOG.warn("no guild to join.");
             }
-        }
-    }
-
-    /**
-     * Plays the fileName requested for a voice channel disconnect.
-     *
-     * @param fileName - The name of the file to play.
-     * @param event    -  The even that triggered the sound playing request. The event is used to find the channel to play
-     *                 the sound back in.
-     */
-    public void playFileForDisconnect(String fileName, GuildVoiceLeaveEvent event) {
-        if (event == null) return;
-        try {
-            moveToChannel(event.getChannelLeft(), event.getGuild());
-            LOG.info("Playing file for disconnect of user: " + fileName);
-            try {
-                playFile(fileName, event.getGuild());
-            } catch (SoundPlaybackException e) {
-                LOG.info("Could not find any sound to play for disconnect of user: " + fileName);
-            }
-        } catch (SoundPlaybackException e) {
-            LOG.debug(e.toString());
         }
     }
 
@@ -538,22 +514,6 @@ public class SoundPlayerImpl {
     }
 
     /**
-     * Play file name requested. Will first try to load the file from the map of available sounds.
-     *
-     * @param fileName - fileName to play.
-     * @param guild    - The guild (discord server) the playback is going to happen in.
-     */
-    private void playFile(String fileName, Guild guild) throws SoundPlaybackException {
-        SoundFile fileToPlay = getSoundFileById(fileName);
-        if (fileToPlay != null) {
-            File soundFile = new File(fileToPlay.getSoundFileLocation());
-            playFile(soundFile, guild);
-        } else {
-            throw new SoundPlaybackException("Could not find sound file that was requested.");
-        }
-    }
-
-    /**
      * Play the provided File object
      *
      * @param audioFile - The File object to play.
@@ -577,46 +537,17 @@ public class SoundPlayerImpl {
         } else {
             LOG.info("Attempting to play file " + audioFile);
             GuildMusicManager mng = getGuildAudioPlayer(guild);
-            playerManager.loadItemOrdered(mng, audioFile, new AudioLoadResultHandler() {
-                @Override
-                public void trackLoaded(AudioTrack track) {
-                    if (repeatNumber <= 1) {
-                        mng.scheduler.playNow(track, guild);
-                    } else {
-                        for (int i = 0; i <= repeatNumber - 1; i++) {
-                            if (i == 0) {
-                                mng.scheduler.queue(track, guild);
-                            } else {
-                                LOG.info("Queuing additional play of track.");
-                                mng.scheduler.queue(track.makeClone(), guild);
-                            }
-                        }
-                    }
-                }
+            playerManager.loadItemOrdered(mng, audioFile, new RepeatableAudioLoadResultHandler(repeatNumber, mng, guild));
+        }
+    }
 
-                @Override
-                public void playlistLoaded(AudioPlaylist playlist) {
-                    AudioTrack firstTrack = playlist.getSelectedTrack();
-
-                    if (firstTrack == null) {
-                        return;
-                    }
-
-                    mng.scheduler.playNow(firstTrack, guild);
-                }
-
-                @Override
-                public void noMatches() {
-                    // Notify the user that we've got nothing
-                    LOG.debug("Could not find file");
-                }
-
-                @Override
-                public void loadFailed(FriendlyException throwable) {
-                    // Notify the user that everything exploded
-                    LOG.error(throwable.getMessage());
-                }
-            });
+    private void queueFile(String audioFile, Guild guild) {
+        if (guild == null) {
+            LOG.error("Guild is null. Have you added your bot to a guild? https://discordapp.com/developers/docs/topics/oauth2");
+        } else {
+            LOG.info("Attempting to queue file " + audioFile);
+            GuildMusicManager mng = getGuildAudioPlayer(guild);
+            playerManager.loadItemOrdered(mng, audioFile, new QueuedAudioLoadResultHandler(mng, guild));
         }
     }
 
@@ -789,6 +720,77 @@ public class SoundPlayerImpl {
             }
         } catch (Exception e) {
             LOG.error("Could not play top file: " + randomValue.getSoundFileId());
+        }
+    }
+
+    private class QueuedAudioLoadResultHandler implements AudioLoadResultHandler {
+
+        private final GuildMusicManager manager;
+        private final Guild guild;
+
+        private QueuedAudioLoadResultHandler(GuildMusicManager mng, Guild guild) {
+            this.manager = mng;
+            this.guild = guild;
+        }
+
+        @Override
+        public void trackLoaded(AudioTrack track) {
+            manager.scheduler.queue(track, guild);
+        }
+
+        @Override
+        public void playlistLoaded(AudioPlaylist playlist) {
+            AudioTrack firstTrack = playlist.getSelectedTrack();
+
+            if (firstTrack == null) {
+                return;
+            }
+
+            getManager().scheduler.playNow(firstTrack,  getGuild());
+        }
+        @Override
+        public void noMatches() {
+            // Notify the user that we've got nothing
+            LOG.debug("Could not find file");
+        }
+
+        @Override
+        public void loadFailed(FriendlyException throwable) {
+            // Notify the user that everything exploded
+            LOG.error(throwable.getMessage(), throwable.getCause());
+        }
+
+        public GuildMusicManager getManager() {
+            return manager;
+        }
+
+        public Guild getGuild() {
+            return guild;
+        }
+    }
+
+    private class RepeatableAudioLoadResultHandler extends QueuedAudioLoadResultHandler {
+        private final int repeatNumber;
+
+        public RepeatableAudioLoadResultHandler(int repeatNumber, GuildMusicManager mng, Guild guild) {
+            super(mng, guild);
+            this.repeatNumber = repeatNumber;
+        }
+
+        @Override
+        public void trackLoaded(AudioTrack track) {
+            if (repeatNumber <= 1) {
+                getManager().scheduler.playNow(track, getGuild());
+            } else {
+                for (int i = 0; i <= repeatNumber - 1; i++) {
+                    if (i == 0) {
+                        getManager().scheduler.playNow(track,  getGuild());
+                    } else {
+                        LOG.info("Queuing additional play of track.");
+                        getManager().scheduler.queue(track.makeClone(),  getGuild());
+                    }
+                }
+            }
         }
     }
 }

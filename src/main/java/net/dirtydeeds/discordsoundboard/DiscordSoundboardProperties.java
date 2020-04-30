@@ -30,6 +30,8 @@ public class DiscordSoundboardProperties {
     private Set<String> unlimitedUserIds = Collections.emptySet();
     private boolean leaveAfterPlayback = false;
     private boolean leaveWhenLastUserInChannel = true;
+    @Min(1)
+    private int repeatLimit = 3;
 
     @Min(0)
     private int rateLimitRestrictDuration;
@@ -145,5 +147,13 @@ public class DiscordSoundboardProperties {
 
     public void setLeaveWhenLastUserInChannel(boolean leaveWhenLastUserInChannel) {
         this.leaveWhenLastUserInChannel = leaveWhenLastUserInChannel;
+    }
+
+    public int getRepeatLimit() {
+        return repeatLimit;
+    }
+
+    public void setRepeatLimit(int repeatLimit) {
+        this.repeatLimit = repeatLimit;
     }
 }
