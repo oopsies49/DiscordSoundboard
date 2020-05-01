@@ -12,6 +12,7 @@ import net.dirtydeeds.discordsoundboard.beans.SoundFile;
 import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
 import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
 import net.dirtydeeds.discordsoundboard.service.SoundPlayerImpl;
+import net.dirtydeeds.discordsoundboard.service.SoundPlayerRateLimiter;
 import net.dirtydeeds.discordsoundboard.util.MessageSplitter;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.ChannelType;
@@ -45,23 +46,32 @@ import java.util.stream.StreamSupport;
  */
 public class ChatSoundBoardListener extends ListenerAdapter {
 
-    private final Logger LOG = LoggerFactory.getLogger(this.getClass());
-
-    private SoundPlayerImpl soundPlayer;
-    private DiscordSoundboardProperties appProperties;
-    private PlayEventRepository playEventRepository;
-    private SoundFileRepository soundFileRepository;
-    private boolean muted;
-    private static DecimalFormat df2 = new DecimalFormat("#.##");
     private static final int MAX_FILE_SIZE_IN_BYTES = 15000000; // 15 MB
+    private static final DecimalFormat df2 = new DecimalFormat("#.##");
+    private final Logger LOG = LoggerFactory.getLogger(this.getClass());
+    private final SoundPlayerRateLimiter rateLimiter;
+    private final SoundPlayerImpl soundPlayer;
+    private final DiscordSoundboardProperties appProperties;
+    private final PlayEventRepository playEventRepository;
+    private final SoundFileRepository soundFileRepository;
+    private boolean muted;
 
 
-    public ChatSoundBoardListener(SoundPlayerImpl soundPlayer, DiscordSoundboardProperties appProperties, PlayEventRepository playEventRepository, SoundFileRepository soundFileRepository) {
+    public ChatSoundBoardListener(SoundPlayerImpl soundPlayer, DiscordSoundboardProperties appProperties, PlayEventRepository playEventRepository, SoundFileRepository soundFileRepository, SoundPlayerRateLimiter rateLimiter) {
         this.soundPlayer = soundPlayer;
         this.appProperties = appProperties;
         this.playEventRepository = playEventRepository;
         this.soundFileRepository = soundFileRepository;
+        this.rateLimiter = rateLimiter;
         muted = false;
+    }
+
+    private static String humanReadableByteCount(long bytes) {
+        int unit = 1000;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = ("kMGTPE").charAt(exp - 1) + ("");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 
     @Override
@@ -110,9 +120,9 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         } else if (message.startsWith(cc + "random")) {
             randomCommand(event, requestingUser);
         } else if (message.startsWith(cc + "top")) {
-            topCommand(event, requestingUser, message);
+            topCommand(event, message);
         } else if (message.startsWith(cc + "bottom")) {
-            bottomCommand(event, requestingUser, message);
+            bottomCommand(event, message);
         } else if (message.startsWith(cc + "summon")) {
             summonCommand(event);
         } else if (message.startsWith(cc + "yt")) {
@@ -328,6 +338,9 @@ public class ChatSoundBoardListener extends ListenerAdapter {
 
     private void playSoundCommand(MessageReceivedEvent event, String requestingUser, String requestingUserId, String message) {
         deleteMessage(event);
+        if (rateLimiter.userIsRateLimited(event.getAuthor().getName())) {
+            return;
+        }
 
         if (muted) {
             LOG.info("Attempting to play a sound file while muted. Requested by " + requestingUser + ". ID: " + requestingUserId);
@@ -377,11 +390,12 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     }
 
     private void youtubeCommand(MessageReceivedEvent event, String originalMessage) {
+        deleteMessage(event);
+
         try {
             int split = originalMessage.indexOf(" ");
             String url = originalMessage.substring(split + 1);
             soundPlayer.playUrlForUser(url, event.getAuthor().getName());
-            deleteMessage(event);
         } catch (Exception e) {
             e.printStackTrace();
             LOG.error(e.getMessage());
@@ -398,30 +412,41 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     }
 
     private void randomCommand(MessageReceivedEvent event, String requestingUser) {
+        deleteMessage(event);
+        if (rateLimiter.userIsRateLimited(event.getAuthor().getName())) {
+            return;
+        }
+
         try {
             soundPlayer.playRandomSoundFile(requestingUser, event);
-            deleteMessage(event);
         } catch (SoundPlaybackException e) {
             replyByPrivateMessage(event, "Problem playing random file:" + e);
         }
     }
 
-
-    private void topCommand(MessageReceivedEvent event, String requestingUser, String message) {
+    private void topCommand(MessageReceivedEvent event, String message) {
         deleteMessage(event);
+        if (rateLimiter.userIsRateLimited(event.getAuthor().getName())) {
+            return;
+        }
+
         int number = getCommandNumber(message);
         try {
-            soundPlayer.playTopSoundFile(requestingUser, event, number);
+            soundPlayer.playTopSoundFile(event, number);
         } catch (SoundPlaybackException e) {
             replyByPrivateMessage(event, "Problem playing random file:" + e);
         }
     }
 
-    private void bottomCommand(MessageReceivedEvent event, String requestingUser, String message) {
+    private void bottomCommand(MessageReceivedEvent event, String message) {
         deleteMessage(event);
+        if (rateLimiter.userIsRateLimited(event.getAuthor().getName())) {
+            return;
+        }
+
         int number = getCommandNumber(message);
         try {
-            soundPlayer.playBottomSoundFile(requestingUser, event, number);
+            soundPlayer.playBottomSoundFile(event, number);
         } catch (SoundPlaybackException e) {
             replyByPrivateMessage(event, "Problem playing random file:" + e);
         }
@@ -538,14 +563,6 @@ public class ChatSoundBoardListener extends ListenerAdapter {
             LOG.warn("Sending of private message timed out");
         }
         deleteMessage(event);
-    }
-
-    private static String humanReadableByteCount(long bytes) {
-        int unit = 1000;
-        if (bytes < unit) return bytes + " B";
-        int exp = (int) (Math.log(bytes) / Math.log(unit));
-        String pre = ("kMGTPE").charAt(exp - 1) + ("");
-        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 
     private void deleteMessage(MessageReceivedEvent event) {
