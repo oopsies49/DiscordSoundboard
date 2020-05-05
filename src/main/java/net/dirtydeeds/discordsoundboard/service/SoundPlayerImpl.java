@@ -70,10 +70,6 @@ public class SoundPlayerImpl {
     private JDA bot;
     private float playerVolume = (float) .75;
     private String soundFileDir;
-    private List<String> allowedUsers;
-    private List<String> allowedUserIds;
-    private List<String> bannedUsers;
-    private List<String> bannedUserIds;
 
     @Autowired
     public SoundPlayerImpl(DiscordSoundboardProperties discordSoundboardProperties, SoundFileRepository soundFileRepository, PlayEventRepository playEventRepository) {
@@ -295,17 +291,21 @@ public class SoundPlayerImpl {
     }
 
     public boolean isUserAllowed(String username, String userId) {
-        if ((allowedUsers == null || allowedUsers.isEmpty()) && (allowedUserIds == null || allowedUserIds.isEmpty())) {
+        List<String> allowedUserIds = appProperties.getAllowedUserIds();
+        if (allowedUserIds == null || allowedUserIds.isEmpty()) {
             return true;
         } else {
-            return (allowedUsers != null && !allowedUsers.isEmpty() && allowedUsers.contains(username)) ||
-                    (allowedUserIds != null && !allowedUserIds.isEmpty() && allowedUserIds.contains(userId));
+            return allowedUserIds.contains(username) || allowedUserIds.contains(userId);
         }
     }
 
     public boolean isUserBanned(String username, String userId) {
-        return (bannedUsers != null && !bannedUsers.isEmpty() && bannedUsers.contains(username)) ||
-                (bannedUserIds != null && !bannedUserIds.isEmpty() && bannedUserIds.contains(userId));
+        List<String> bannedUserIds = appProperties.getBannedUserIds();
+        if (bannedUserIds == null || bannedUserIds.isEmpty()) {
+            return false;
+        } else {
+            return bannedUserIds.contains(username) || bannedUserIds.contains(userId);
+        }
     }
 
     /**
@@ -507,9 +507,6 @@ public class SoundPlayerImpl {
 
             soundFileDir = appProperties.getSoundsDirectory();
 
-            if (soundFileDir == null || soundFileDir.isEmpty()) {
-                soundFileDir = System.getProperty("user.dir") + "/sounds";
-            }
             LOG.info("Loading from " + soundFileDir);
             Path soundFilePath = Paths.get(soundFileDir);
 
@@ -579,11 +576,6 @@ public class SoundPlayerImpl {
                     this.addBotListener(disconnectListener);
                 }
             }
-
-            allowedUsers = appProperties.getAllowedUserIds();
-            allowedUserIds = appProperties.getAllowedUserIds();
-            bannedUsers = appProperties.getBannedUserIds();
-            bannedUserIds = appProperties.getBannedUserIds();
 
             Game game = Game.of(Game.GameType.DEFAULT,"Type " + appProperties.getCommandCharacter() + "help for a list of commands.");
             bot.getPresence().setGame(game);

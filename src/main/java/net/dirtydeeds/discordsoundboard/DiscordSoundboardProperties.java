@@ -1,5 +1,6 @@
 package net.dirtydeeds.discordsoundboard;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -24,6 +25,9 @@ public class DiscordSoundboardProperties {
     @Min(0)
     @Max(1994)
     private int messageSizeLimit = 1994;
+
+    @NotNull
+    @Value("${user.dir}/sounds")
     private String soundsDirectory;
     private List<String> allowedUserIds = Collections.emptyList();
     private List<String> bannedUserIds = Collections.emptyList();

@@ -1,5 +1,7 @@
 package net.dirtydeeds.discordsoundboard.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,7 @@ import static java.nio.file.StandardWatchEventKinds.*;
  */
 @Service
 public class SoundFolderWatch extends Observable {
+    private final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     @Async
     @SuppressWarnings("unchecked")
@@ -35,7 +38,7 @@ public class SoundFolderWatch extends Observable {
             e.printStackTrace();
         }
 
-        System.out.println("Watching path: " + path);
+        LOG.info("Watching path: " + path);
 
         // We obtain the file system of the Path
         FileSystem fs = path.getFileSystem ();
@@ -63,7 +66,7 @@ public class SoundFolderWatch extends Observable {
                     // Output
                     //Mark the observable object as changed.
                     this.setChanged();
-                    System.out.println("New path created: " + newPath + " kind of operation: " + kind);
+                    LOG.info("New path created: " + newPath + " kind of operation: " + kind);
 
                     notifyObservers(this);
                 }
@@ -83,7 +86,7 @@ public class SoundFolderWatch extends Observable {
                         // Output
                         //Mark the observable object as changed.
                         this.setChanged();
-                        System.out.println("New path created: " + newPath + " kind of operation: " + kind);
+                        LOG.info("New path created: " + newPath + " kind of operation: " + kind);
 
                         notifyObservers(this);
                     }
