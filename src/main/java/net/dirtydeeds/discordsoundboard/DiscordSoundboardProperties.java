@@ -17,7 +17,6 @@ public class DiscordSoundboardProperties {
 
     @NotNull
     private String botToken;
-    private String usernameToJoinChannel;
     private String commandCharacter = "?";
     private boolean respondToChatCommands = true;
     private boolean respondToDm = true;
@@ -32,7 +31,6 @@ public class DiscordSoundboardProperties {
     private List<String> allowedUserIds = Collections.emptyList();
     private List<String> bannedUserIds = Collections.emptyList();
     private Set<String> unlimitedUserIds = Collections.emptySet();
-    private boolean leaveAfterPlayback = false;
     private boolean leaveWhenLastUserInChannel = true;
     @Min(1)
     private int repeatLimit = 3;
@@ -47,14 +45,6 @@ public class DiscordSoundboardProperties {
 
     public void setBotToken(@NotNull String botToken) {
         this.botToken = botToken;
-    }
-
-    public String getUsernameToJoinChannel() {
-        return usernameToJoinChannel;
-    }
-
-    public void setUsernameToJoinChannel(String usernameToJoinChannel) {
-        this.usernameToJoinChannel = usernameToJoinChannel;
     }
 
     public String getCommandCharacter() {
@@ -103,14 +93,6 @@ public class DiscordSoundboardProperties {
 
     public void setSoundsDirectory(String soundsDirectory) {
         this.soundsDirectory = soundsDirectory;
-    }
-
-    public boolean isLeaveAfterPlayback() {
-        return leaveAfterPlayback;
-    }
-
-    public void setLeaveAfterPlayback(boolean leaveAfterPlayback) {
-        this.leaveAfterPlayback = leaveAfterPlayback;
     }
 
     public List<String> getAllowedUserIds() {

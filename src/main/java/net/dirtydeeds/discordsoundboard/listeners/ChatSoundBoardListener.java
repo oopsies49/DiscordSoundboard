@@ -304,8 +304,9 @@ public class ChatSoundBoardListener extends ListenerAdapter {
                 if (extension.equals("wav") || extension.equals("mp3") || extension.equals("ogg")
                         || extension.equals("flac") || extension.equals("mp4") || extension.equals("m4a")) {
                     if (attachment.getSize() < MAX_FILE_SIZE_IN_BYTES) {
-                        if (!Files.exists(Paths.get(soundPlayer.getSoundsPath() + "/" + name))) {
-                            File newSoundFile = new File(soundPlayer.getSoundsPath(), name);
+                        String soundsDirectory = appProperties.getSoundsDirectory();
+                        if (!Files.exists(Paths.get(soundsDirectory + "/" + name))) {
+                            File newSoundFile = new File(soundsDirectory, name);
                             attachment.download(newSoundFile);
                             replyByPrivateMessage(event, "Downloaded file `" + name +
                                     "` and added to list of sounds " + event.getAuthor().getAsMention() + ".");
@@ -314,8 +315,8 @@ public class ChatSoundBoardListener extends ListenerAdapter {
                             if (event.getAuthor().getName().equalsIgnoreCase(name.substring(0, name.indexOf(".")))
                                     || hasManageServerPerm) {
                                 try {
-                                    Files.deleteIfExists(Paths.get(soundPlayer.getSoundsPath() + "/" + name));
-                                    File newSoundFile = new File(soundPlayer.getSoundsPath(), name);
+                                    Files.deleteIfExists(Paths.get(soundsDirectory + "/" + name));
+                                    File newSoundFile = new File(soundsDirectory, name);
                                     attachment.download(newSoundFile);
                                     replyByPrivateMessage(event, "Downloaded file `" + name +
                                             "` and updated list of sounds " + event.getAuthor().getAsMention() + ".");
@@ -528,7 +529,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
                 "\nVersion: " + version +
                 "\nSoundFiles: " + soundPlayer.getAvailableSoundFiles().size() +
                 "\nCommand Prefix: " + appProperties.getCommandCharacter() +
-                "\nSound File Path: " + soundPlayer.getSoundsPath() +
+                "\nSound File Path: " + appProperties.getSoundsDirectory() +
                 "```");
     }
 

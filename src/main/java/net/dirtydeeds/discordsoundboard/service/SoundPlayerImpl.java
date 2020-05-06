@@ -69,7 +69,6 @@ public class SoundPlayerImpl {
     private final SoundFileRepository soundFileRepository;
     private JDA bot;
     private float playerVolume = (float) .75;
-    private String soundFileDir;
 
     @Autowired
     public SoundPlayerImpl(DiscordSoundboardProperties discordSoundboardProperties, SoundFileRepository soundFileRepository, PlayEventRepository playEventRepository) {
@@ -156,10 +155,6 @@ public class SoundPlayerImpl {
     }
 
     public void playUrlForUser(String url, String userName) {
-        if (userName == null || userName.isEmpty()) {
-            userName = appProperties.getUsernameToJoinChannel();
-        }
-
         try {
             Guild guild = getUsersGuild(userName);
             joinUsersCurrentChannel(userName);
@@ -267,29 +262,6 @@ public class SoundPlayerImpl {
         return false;
     }
 
-    /**
-     * Get a list of users
-     *
-     * @return List of soundboard users.
-     */
-    public List<net.dirtydeeds.discordsoundboard.beans.User> getUsers() {
-        String userNameToSelect = appProperties.getUsernameToJoinChannel();
-        List<User> users = new ArrayList<>();
-        for (Guild guild : bot.getGuilds()) {
-            for (Member member : guild.getMembers()) {
-                boolean selected = false;
-                String username = member.getUser().getName();
-                if (userNameToSelect.equals(username)) {
-                    selected = true;
-                }
-                users.add(new net.dirtydeeds.discordsoundboard.beans.User(member.getUser().getId(), username, member.getOnlineStatus().name(), selected));
-            }
-        }
-        Comparator<User> c = Comparator.comparing(User::getUsernameLowerCase);
-        users.sort(c);
-        return users;
-    }
-
     public boolean isUserAllowed(String username, String userId) {
         List<String> allowedUserIds = appProperties.getAllowedUserIds();
         if (allowedUserIds == null || allowedUserIds.isEmpty()) {
@@ -306,15 +278,6 @@ public class SoundPlayerImpl {
         } else {
             return bannedUserIds.contains(username) || bannedUserIds.contains(userId);
         }
-    }
-
-    /**
-     * Get the path the application is using for sound files.
-     *
-     * @return String representation of the sound file path.
-     */
-    public String getSoundsPath() {
-        return soundFileDir;
     }
 
     public void sendPrivateMessage(MessageReceivedEvent event, String message) throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
@@ -440,6 +403,7 @@ public class SoundPlayerImpl {
                     if (user.getUser().getName().equalsIgnoreCase(userName)) {
                         try {
                             moveToChannel(channel, guild);
+                            return;
                         } catch (SoundPlaybackException e) {
                             LOG.error(e.toString());
                             throw e;
@@ -503,27 +467,25 @@ public class SoundPlayerImpl {
      * to the jar file. If not it assumes you are running from code and loads relative to your resource dir.
      */
     public void getFileList() {
-        try {
+        String soundFileDir = appProperties.getSoundsDirectory();
 
-            soundFileDir = appProperties.getSoundsDirectory();
+        LOG.info("Loading from " + soundFileDir);
+        Path soundFilePath = Paths.get(soundFileDir);
 
-            LOG.info("Loading from " + soundFileDir);
-            Path soundFilePath = Paths.get(soundFileDir);
+        if (!soundFilePath.toFile().exists()) {
+            System.out.println("creating directory: " + soundFilePath.toFile().toString());
+            boolean result = false;
 
-            if (!soundFilePath.toFile().exists()) {
-                System.out.println("creating directory: " + soundFilePath.toFile().toString());
-                boolean result = false;
-
-                try {
-                    result = soundFilePath.toFile().mkdir();
-                } catch (SecurityException se) {
-                    LOG.error("Could not create directory: " + soundFilePath.toFile().toString());
-                }
-                if (result) {
-                    LOG.info("DIR: " + soundFilePath.toFile().toString() + " created.");
-                }
+            try {
+                result = soundFilePath.toFile().mkdir();
+            } catch (SecurityException se) {
+                LOG.error("Could not create directory: " + soundFilePath.toFile().toString());
             }
-
+            if (result) {
+                LOG.info("DIR: " + soundFilePath.toFile().toString() + " created.");
+            }
+        }
+        try {
             Files.walk(soundFilePath).filter(p -> Files.isReadable(p) && !Files.isDirectory(p) && !Files.isSymbolicLink(p))
                     .forEach(filePath -> {
                         String fileName = filePath.getFileName().toString();
