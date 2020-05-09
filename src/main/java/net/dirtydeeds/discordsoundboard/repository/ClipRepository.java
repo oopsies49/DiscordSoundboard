@@ -1,6 +1,6 @@
 package net.dirtydeeds.discordsoundboard.repository;
 
-import net.dirtydeeds.discordsoundboard.beans.SoundFile;
+import net.dirtydeeds.discordsoundboard.beans.Clip;
 import net.dirtydeeds.discordsoundboard.beans.SoundFilePlayEventCount;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
@@ -17,15 +17,15 @@ import java.util.stream.Collectors;
 /**
  * @author dfurrer.
  */
-public interface SoundFileRepository extends CrudRepository<SoundFile, String> {
-    SoundFile findOneBySoundFileIdIgnoreCase(String name);
-    Page<SoundFile> findAll(Pageable pageable);
+public interface ClipRepository extends CrudRepository<Clip, String> {
+    Clip findOneBySoundFileIdIgnoreCase(String name);
+    Page<Clip> findAll(Pageable pageable);
 
-    default SoundFile findRandom() {
+    default Clip findRandom() {
         long count = count();
         int random = (int) (Math.random() * count);
 
-        Page<SoundFile> page = findAll(PageRequest.of(random, 1));
+        Page<Clip> page = findAll(PageRequest.of(random, 1));
 
         if (page.hasContent()) {
             return page.getContent().get(0);

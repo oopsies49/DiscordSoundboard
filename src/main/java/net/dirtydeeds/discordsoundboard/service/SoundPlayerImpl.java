@@ -17,14 +17,14 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
 import net.dirtydeeds.discordsoundboard.audio.GuildMusicManager;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
+import net.dirtydeeds.discordsoundboard.beans.Clip;
 import net.dirtydeeds.discordsoundboard.beans.PlayEvent;
-import net.dirtydeeds.discordsoundboard.beans.SoundFile;
 import net.dirtydeeds.discordsoundboard.beans.SoundFilePlayEventCount;
-import net.dirtydeeds.discordsoundboard.beans.User;
 import net.dirtydeeds.discordsoundboard.listeners.ChatSoundBoardListener;
 import net.dirtydeeds.discordsoundboard.listeners.DisconnectListener;
 import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
-import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
+import net.dirtydeeds.discordsoundboard.repository.ClipRepository;
+import net.dirtydeeds.discordsoundboard.repository.TagRepository;
 import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.JDABuilder;
@@ -64,17 +64,19 @@ public class SoundPlayerImpl {
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
     private final Map<String, GuildMusicManager> musicManagers;
     private final PlayEventRepository playEventRepository;
+    private final TagRepository tagRepository;
     private final DiscordSoundboardProperties appProperties;
     private final AudioPlayerManager playerManager;
-    private final SoundFileRepository soundFileRepository;
+    private final ClipRepository clipRepository;
     private JDA bot;
     private float playerVolume = (float) .75;
 
     @Autowired
-    public SoundPlayerImpl(DiscordSoundboardProperties discordSoundboardProperties, SoundFileRepository soundFileRepository, PlayEventRepository playEventRepository) {
+    public SoundPlayerImpl(DiscordSoundboardProperties discordSoundboardProperties, ClipRepository clipRepository, PlayEventRepository playEventRepository, TagRepository tagRepository) {
         this.appProperties = discordSoundboardProperties;
-        this.soundFileRepository = soundFileRepository;
+        this.clipRepository = clipRepository;
         this.playEventRepository = playEventRepository;
+        this.tagRepository = tagRepository;
         this.musicManagers = new HashMap<>();
 
         initializeDiscordBot();
@@ -107,10 +109,10 @@ public class SoundPlayerImpl {
      *
      * @return Map of sound files that have been loaded.
      */
-    public Map<String, SoundFile> getAvailableSoundFiles() {
-        Map<String, SoundFile> returnFiles = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        for (SoundFile soundFile : soundFileRepository.findAll()) {
-            returnFiles.put(soundFile.getSoundFileId(), soundFile);
+    public Map<String, Clip> getAvailableSoundFiles() {
+        Map<String, Clip> returnFiles = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Clip clip : clipRepository.findAll()) {
+            returnFiles.put(clip.getClipId(), clip);
         }
         return returnFiles;
     }
@@ -141,13 +143,13 @@ public class SoundPlayerImpl {
 
     public void playRandomSoundFile(String requestingUser, MessageReceivedEvent event) throws SoundPlaybackException {
         try {
-            SoundFile randomValue = soundFileRepository.findRandom();
+            Clip randomValue = clipRepository.findRandom();
 
-            LOG.info("Attempting to play random file: " + randomValue.getSoundFileId() + ", requested by : " + requestingUser);
+            LOG.info("Attempting to play random file: " + randomValue.getClipId() + ", requested by : " + requestingUser);
             try {
-                playFileForEvent(randomValue.getSoundFileId(), event);
+                playFileForEvent(randomValue.getClipId(), event);
             } catch (Exception e) {
-                LOG.error("Could not play random file: " + randomValue.getSoundFileId());
+                LOG.error("Could not play random file: " + randomValue.getClipId());
             }
         } catch (Exception e) {
             throw new SoundPlaybackException("Problem playing random file.");
@@ -187,7 +189,7 @@ public class SoundPlayerImpl {
      * @throws Exception Throws exception if it couldn't find the file requested or can't join the voice channel
      */
     public void playFileForEvent(String fileName, MessageReceivedEvent event, int repeatNumber) throws Exception {
-        SoundFile fileToPlay = getSoundFileById(fileName);
+        Clip fileToPlay = getSoundFileById(fileName);
         if (event != null) {
             String userName = event.getAuthor().getName();
             playEventRepository.save(new PlayEvent(userName, fileName));
@@ -214,7 +216,7 @@ public class SoundPlayerImpl {
                 return;
             }
 
-            File soundFile = new File(fileToPlay.getSoundFileLocation());
+            File soundFile = new File(fileToPlay.getClipLocation());
             playFile(userName, soundFile.getAbsolutePath(), guild, repeatNumber);
         }
     }
@@ -286,8 +288,8 @@ public class SoundPlayerImpl {
         channel.sendMessage(message).submit();
     }
 
-    private SoundFile getSoundFileById(String soundFileId) {
-        return soundFileRepository.findOneBySoundFileIdIgnoreCase(soundFileId);
+    private Clip getSoundFileById(String soundFileId) {
+        return clipRepository.findOneBySoundFileIdIgnoreCase(soundFileId);
     }
 
     /**
@@ -296,13 +298,13 @@ public class SoundPlayerImpl {
      * @return true if the sound file was successfully deleted, false if the sound file was not found or there was an error
      */
     public boolean deleteSoundFileById(String soundFileId) {
-        SoundFile soundFile = soundFileRepository.findOneBySoundFileIdIgnoreCase(soundFileId);
-        if (soundFile == null) {
+        Clip clip = clipRepository.findOneBySoundFileIdIgnoreCase(soundFileId);
+        if (clip == null) {
             return false;
         }
-        soundFileRepository.delete(soundFile);
+        clipRepository.delete(clip);
         try {
-            Path path = Paths.get(soundFile.getSoundFileLocation());
+            Path path = Paths.get(clip.getClipLocation());
             LOG.info("Deleting file={}", path);
             return Files.deleteIfExists(path);
         } catch (IOException e) {
@@ -495,12 +497,13 @@ public class SoundPlayerImpl {
                             LOG.info(fileName);
                             File file = filePath.toFile();
                             String parent = file.getParentFile().getName();
-                            SoundFile soundFile = new SoundFile(fileName, filePath.toString(), parent, new Date(file.lastModified()));
-                            SoundFile existing = soundFileRepository.findOneBySoundFileIdIgnoreCase(fileName);
-                            if (existing != null) {
-                                soundFileRepository.delete(existing);
-                            }
-                            soundFileRepository.save(soundFile);
+                            Clip clip = new Clip(fileName, filePath.toString(), parent, new Date(file.lastModified()));
+//                            SoundFile existing = soundFileRepository.findOneBySoundFileIdIgnoreCase(fileName);
+//                            if (existing != null) {
+//                                soundFileRepository.delete(existing);
+//                                soundFileRepository.save(soundFile);
+//                            }
+                            clipRepository.save(clip);
                         } catch (Exception e) {
                             LOG.error(e.toString());
                             e.printStackTrace();
@@ -530,7 +533,7 @@ public class SoundPlayerImpl {
                     .awaitReady();
 
             if (appProperties.isRespondToChatCommands()) {
-                ChatSoundBoardListener chatListener = new ChatSoundBoardListener(this, appProperties, playEventRepository, soundFileRepository, new SoundPlayerRateLimiter(appProperties));
+                ChatSoundBoardListener chatListener = new ChatSoundBoardListener(this, appProperties, playEventRepository, clipRepository, tagRepository, new SoundPlayerRateLimiter(appProperties));
                 this.addBotListener(chatListener);
 
                 if (appProperties.isLeaveWhenLastUserInChannel()) {
@@ -579,7 +582,7 @@ public class SoundPlayerImpl {
 
     public void playTopSoundFile(MessageReceivedEvent event, int number) throws SoundPlaybackException {
         try {
-            List<SoundFilePlayEventCount> soundFilePlayEventCounts = soundFileRepository.getSoundFilePlayEventCountDesc();
+            List<SoundFilePlayEventCount> soundFilePlayEventCounts = clipRepository.getSoundFilePlayEventCountDesc();
             playRandom(event, number, soundFilePlayEventCounts);
         } catch (Exception e) {
             LOG.error("Problem playing top file.", e);
@@ -589,7 +592,7 @@ public class SoundPlayerImpl {
 
     public void playBottomSoundFile(MessageReceivedEvent event, int number) throws SoundPlaybackException {
         try {
-            List<SoundFilePlayEventCount> soundFilePlayEventCounts = soundFileRepository.getSoundFilePlayEventCountAsc();
+            List<SoundFilePlayEventCount> soundFilePlayEventCounts = clipRepository.getSoundFilePlayEventCountAsc();
             playRandom(event, number, soundFilePlayEventCounts);
         } catch (Exception e) {
             LOG.error("Problem playing top file.", e);
@@ -617,6 +620,10 @@ public class SoundPlayerImpl {
         } catch (Exception e) {
             LOG.error("Could not play top file: {}", randomValue.getSoundFileId());
         }
+    }
+
+    public void playRandomFileWithTags(List<String> tags) {
+//        tagRepository.
     }
 
     private class QueuedAudioLoadResultHandler implements AudioLoadResultHandler {

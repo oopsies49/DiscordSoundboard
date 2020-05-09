@@ -1,16 +1,16 @@
 package net.dirtydeeds.discordsoundboard.listeners;
 
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.sun.management.OperatingSystemMXBean;
 import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
 import net.dirtydeeds.discordsoundboard.SoundPlaybackException;
-import net.dirtydeeds.discordsoundboard.beans.PlayEventFilenameCount;
-import net.dirtydeeds.discordsoundboard.beans.PlayEventUsernameCount;
-import net.dirtydeeds.discordsoundboard.beans.PlayEventUsernameFilenameCount;
-import net.dirtydeeds.discordsoundboard.beans.SoundFile;
+import net.dirtydeeds.discordsoundboard.beans.*;
 import net.dirtydeeds.discordsoundboard.repository.PlayEventRepository;
-import net.dirtydeeds.discordsoundboard.repository.SoundFileRepository;
+import net.dirtydeeds.discordsoundboard.repository.ClipRepository;
+import net.dirtydeeds.discordsoundboard.repository.TagRepository;
 import net.dirtydeeds.discordsoundboard.service.SoundPlayerImpl;
 import net.dirtydeeds.discordsoundboard.service.SoundPlayerRateLimiter;
 import net.dirtydeeds.discordsoundboard.util.MessageSplitter;
@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -49,19 +50,21 @@ public class ChatSoundBoardListener extends ListenerAdapter {
     private static final int MAX_FILE_SIZE_IN_BYTES = 15000000; // 15 MB
     private static final DecimalFormat df2 = new DecimalFormat("#.##");
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
+    private TagRepository tagRepository;
     private final SoundPlayerRateLimiter rateLimiter;
     private final SoundPlayerImpl soundPlayer;
     private final DiscordSoundboardProperties appProperties;
     private final PlayEventRepository playEventRepository;
-    private final SoundFileRepository soundFileRepository;
+    private final ClipRepository clipRepository;
     private boolean muted;
 
 
-    public ChatSoundBoardListener(SoundPlayerImpl soundPlayer, DiscordSoundboardProperties appProperties, PlayEventRepository playEventRepository, SoundFileRepository soundFileRepository, SoundPlayerRateLimiter rateLimiter) {
+    public ChatSoundBoardListener(SoundPlayerImpl soundPlayer, DiscordSoundboardProperties appProperties, PlayEventRepository playEventRepository, ClipRepository clipRepository, TagRepository tagRepository, SoundPlayerRateLimiter rateLimiter) {
         this.soundPlayer = soundPlayer;
         this.appProperties = appProperties;
         this.playEventRepository = playEventRepository;
-        this.soundFileRepository = soundFileRepository;
+        this.clipRepository = clipRepository;
+        this.tagRepository = tagRepository;
         this.rateLimiter = rateLimiter;
         muted = false;
     }
@@ -129,6 +132,12 @@ public class ChatSoundBoardListener extends ListenerAdapter {
             youtubeCommand(event, originalMessage);
         } else if (message.startsWith(cc + "stats")) {
             statsCommand(event);
+        } else if (message.startsWith(cc + "addtag")) {
+            addTagCommand(event);
+        } else if (message.startsWith(cc + "gettags")) {
+            getTagsCommand(event);
+        } else if (message.startsWith(cc + "tag")) {
+            tagCommand(event, requestingUser, requestingUserId);
         } else if (message.startsWith(appProperties.getCommandCharacter()) && message.length() >= 2) {
             playSoundCommand(event, requestingUser, requestingUserId, message);
         } else {
@@ -164,7 +173,7 @@ public class ChatSoundBoardListener extends ListenerAdapter {
         }
 
         StringBuilder sb = new StringBuilder();
-        Set<String> soundFileLocations = soundFileRepository.getSoundFileNames();
+        Set<String> soundFileLocations = clipRepository.getSoundFileNames();
         switch (statsQuery) {
             case "usersounds":
                 Collection<PlayEventUsernameFilenameCount> usernameFilenameCount = playEventRepository.getUsernameFilenameCount();
@@ -335,6 +344,82 @@ public class ChatSoundBoardListener extends ListenerAdapter {
                 }
             }
         }
+    }
+
+    private void tagCommand(MessageReceivedEvent event, String requestingUser, String requestingUserId) {
+        deleteMessage(event);
+        if (rateLimiter.userIsRateLimited(event.getAuthor().getName())) {
+            return;
+        }
+
+        if (muted) {
+            LOG.info("Attempting to play a sound file while muted. Requested by " + requestingUser + ". ID: " + requestingUserId);
+            replyByPrivateMessage(event, "I seem to be muted! Try " + appProperties.getCommandCharacter() + "help");
+            return;
+        }
+
+        Message message = event.getMessage();
+        String contentStripped = message.getContentStripped();
+        int commandLength = appProperties.getCommandCharacter().length() + "tag".length();
+
+        String args = contentStripped.substring(0, commandLength);
+        Splitter splitter = Splitter.on(CharMatcher.whitespace()).omitEmptyStrings();
+        List<String> tags = splitter.splitToList(args);
+
+        soundPlayer.playRandomFileWithTags(tags);
+    }
+
+    private void addTagCommand(MessageReceivedEvent event) {
+        deleteMessage(event);
+
+        Message message = event.getMessage();
+        String contentStripped = message.getContentStripped();
+        int commandLength = appProperties.getCommandCharacter().length() + "addtag".length();
+        String args = contentStripped.substring(commandLength);
+        Splitter splitter = Splitter.on(CharMatcher.whitespace()).omitEmptyStrings();
+        List<String> tags = splitter.splitToList(args);
+
+        if (tags.size() < 2) {
+            replyByPrivateMessage(event, String.format("addtag syntax: `%saddtag <sound file> <tag>...`", appProperties.getCommandCharacter()));
+            return;
+        }
+
+        Clip clip = clipRepository.findOneBySoundFileIdIgnoreCase(tags.get(0));
+        for (int i = 1; i < tags.size(); i++) {
+            Tag tag = tagRepository.findOneByNameIgnoreCase(tags.get(i));
+            if (tag == null) {
+                tag = new Tag();
+                tag.setName(tags.get(i));
+            }
+            Set<Clip> clips = tag.getClips();
+            clips.add(clip);
+            tagRepository.save(tag);
+        }
+    }
+
+    private void getTagsCommand(MessageReceivedEvent event) {
+        deleteMessage(event);
+
+        Message message = event.getMessage();
+        String contentStripped = message.getContentStripped();
+        int commandLength = appProperties.getCommandCharacter().length() + "gettags".length();
+        String args = contentStripped.substring(commandLength);
+        Splitter splitter = Splitter.on(CharMatcher.whitespace()).omitEmptyStrings();
+        List<String> soundFiles = splitter.splitToList(args);
+        if (soundFiles.size() != 1) {
+            replyByPrivateMessage(event, String.format("gettag syntax: `%sgettags <sound file>`", appProperties.getCommandCharacter()));
+            return;
+        }
+
+
+        Clip clip = clipRepository.findOneBySoundFileIdIgnoreCase(soundFiles.get(0));
+        List<String> tags = clip.getTags().stream().map(Tag::getName).collect(Collectors.toList());
+        StringBuilder sb = new StringBuilder("Tags for ");
+        sb.append(clip.getClipId()).append(": ");
+        Joiner joiner = Joiner.on(' ');
+        joiner.appendTo(sb, tags);
+
+        replyByPrivateMessage(event, sb.toString());
     }
 
     private void playSoundCommand(MessageReceivedEvent event, String requestingUser, String requestingUserId, String message) {
@@ -546,9 +631,9 @@ public class ChatSoundBoardListener extends ListenerAdapter {
 
     private StringBuilder getCommandListString() {
         StringBuilder sb = new StringBuilder();
-        StreamSupport.stream(soundFileRepository.findAll().spliterator(), false)
-                .sorted(Comparator.comparing(SoundFile::getLastModified).reversed())
-                .map(soundFile -> String.format("%s%-50s%tF\n", appProperties.getCommandCharacter(), soundFile.getSoundFileId(), soundFile.getLastModified()))
+        StreamSupport.stream(clipRepository.findAll().spliterator(), false)
+                .sorted(Comparator.comparing(Clip::getLastModified).reversed())
+                .map(soundFile -> String.format("%s%-50s%tF\n", appProperties.getCommandCharacter(), soundFile.getClipId(), soundFile.getLastModified()))
                 .forEach(sb::append);
         return sb;
     }
