@@ -1,5 +1,6 @@
 package net.dirtydeeds.discordsoundboard.service;
 
+import net.dirtydeeds.discordsoundboard.DiscordSoundboardProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,11 +13,11 @@ public class SoundWatchService implements Observer {
     private SoundPlayerImpl soundPlayer;
 
     @Autowired
-    public SoundWatchService(SoundFolderWatch soundFolderWatch, SoundPlayerImpl soundPlayer) {
+    public SoundWatchService(DiscordSoundboardProperties appProperties, SoundFolderWatch soundFolderWatch, SoundPlayerImpl soundPlayer) {
         this.soundPlayer = soundPlayer;
 
         soundFolderWatch.addObserver(this);
-        soundFolderWatch.watchDirectoryPath(soundPlayer.getSoundsPath());
+        soundFolderWatch.watchDirectoryPath(appProperties.getSoundsDirectory());
     }
 
     @Override
