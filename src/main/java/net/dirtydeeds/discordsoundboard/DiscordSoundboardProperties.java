@@ -6,6 +6,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;
@@ -25,9 +26,8 @@ public class DiscordSoundboardProperties {
     @Max(1994)
     private int messageSizeLimit = 1994;
 
-    @NotNull
-    @Value("${user.dir}/sounds")
-    private String soundsDirectory;
+    @NotEmpty
+    private String soundsDirectory = "sounds";
     private List<String> allowedUserIds = Collections.emptyList();
     private List<String> bannedUserIds = Collections.emptyList();
     private Set<String> unlimitedUserIds = Collections.emptySet();
